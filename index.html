@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Wheel Be Fine</title>
+  <meta name="description" content="A carefree, low-pressure driving simulator that helps nervous teens build skills and confidence before getting behind the wheel.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' aria-hidden='true'%3E%3Cpath d='M50 88C22 68 7 51 10 32 13 15 33 9 50 25 67 9 87 15 90 32 93 51 78 68 50 88Z' fill='none' stroke='%23A44A3F' stroke-width='9' stroke-linejoin='round'/%3E%3Cpath d='M50 49 15 41M50 49 85 41M50 49 50 83' stroke='%235A7431' stroke-width='7' stroke-linecap='round'/%3E%3Ccircle cx='50' cy='49' r='11' fill='%23F19C79' stroke='%23A44A3F' stroke-width='3'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<svg class="bg-heart" viewBox="0 0 100 100" aria-hidden="true"><path d="M50 88C22 68 7 51 10 32 13 15 33 9 50 25 67 9 87 15 90 32 93 51 78 68 50 88Z" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M50 49 15 41M50 49 85 41M50 49 50 83" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><circle cx="50" cy="49" r="10" fill="none" stroke="currentColor" stroke-width="3"/></svg>
+<main id="app">
+
+  <!-- HOME -->
+  <section id="home" class="screen">
+    <div class="wrap">
+      <div class="hero">
+        <p class="hero-kicker">Nervous about driving?</p>
+        <h1 class="hero-title"><span>Wheel</span> <span>Be Fine</span></h1>
+        <p class="hero-lead">An anxiety-free app for new drivers.</p>
+        <svg class="hero-scene" viewBox="0 40 1000 210" role="img" aria-label="A coral sports car driving along a quiet winding road through green hills">
+          <circle cx="815" cy="92" r="46" fill="#F6C85F" opacity=".45"/>
+          <path d="M0 168C130 120 270 132 420 150S720 104 1000 140V250H0Z" fill="#CBDFBD"/>
+          <circle cx="160" cy="135" r="14" fill="#A9C38A"/><circle cx="182" cy="140" r="10" fill="#A9C38A"/>
+          <circle cx="640" cy="120" r="12" fill="#A9C38A"/><circle cx="905" cy="128" r="15" fill="#A9C38A"/><circle cx="926" cy="134" r="10" fill="#A9C38A"/>
+          <path d="M0 200C190 168 380 190 590 178S860 158 1000 176V250H0Z" fill="#B7CF8E"/>
+          <path d="M-20 232C240 208 500 222 740 204S960 186 1020 188" fill="none" stroke="#7A817C" stroke-width="34" stroke-linecap="round"/>
+          <path d="M-20 232C240 208 500 222 740 204S960 186 1020 188" fill="none" stroke="#F6F4D2" stroke-width="3" stroke-dasharray="18 16"/>
+          <g transform="translate(398 213) rotate(-2.2)">
+            <ellipse cx="81" cy="0" rx="80" ry="5" fill="#2E3A24" opacity=".22"/>
+            <path d="M0-14C2-22 20-26 40-28L70-42C90-50 112-48 126-38L150-26C158-24 162-20 162-14V-8C162-5 159-4 156-4H6C2-4 0-6 0-9Z" fill="#D95D4A"/>
+            <path d="M74-40C90-47 108-46 120-37L112-32 70-33Z" fill="#2E3A44"/>
+            <path d="M8-17H150" stroke="#F19C79" stroke-width="2" stroke-linecap="round" opacity=".8"/>
+            <circle cx="36" cy="-6" r="13" fill="#2B3236"/><circle cx="36" cy="-6" r="6" fill="#D7DBD2"/>
+            <circle cx="130" cy="-6" r="13" fill="#2B3236"/><circle cx="130" cy="-6" r="6" fill="#D7DBD2"/>
+            <rect x="156" y="-20" width="6" height="4" rx="2" fill="#FFF4C2"/>
+          </g>
+        </svg>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="btn-start">Start practicing</button>
+        <button class="btn" id="btn-progress">My progress</button>
+        <button class="btn ghost" id="btn-about">How it works</button>
+        <button class="btn ghost" id="btn-home-cert">My certificate</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- CHECK-IN -->
+  <section id="checkin" class="screen" hidden>
+    <div class="wrap narrow">
+      <div class="topbar"><button class="link" data-go="home">← Home</button></div>
+      <p class="eyebrow">Quick check-in</p>
+      <h2>How are you feeling?</h2>
+      <div class="scale">
+        <input type="range" id="checkin-range" min="1" max="10" value="5" aria-label="How you feel, from 1 (calm) to 10 (anxious)">
+        <div class="scale-labels"><span>1 · Calm</span><span id="checkin-value">5</span><span>10 · Anxious</span></div>
+      </div>
+      <p class="muted">There's no wrong answer. Checking in before and after each drive lets you see your confidence grow over time.</p>
+      <div class="actions"><button class="btn primary" id="checkin-next">Continue</button></div>
+    </div>
+  </section>
+
+  <!-- BREATHING -->
+  <section id="breathe" class="screen" hidden>
+    <div class="wrap narrow center">
+      <p class="eyebrow">Before you drive</p>
+      <h2>Take three slow breaths</h2>
+      <div class="breath" id="breath-main"><div class="breath-circle"></div><div class="breath-text"></div></div>
+      <p class="muted">Breathing out more slowly than you breathe in helps your body settle down.</p>
+      <div class="actions center"><button class="btn" id="breathe-skip">Skip</button></div>
+    </div>
+  </section>
+
+  <!-- LEVEL SELECT -->
+  <section id="levels" class="screen" hidden>
+    <div class="wrap">
+      <div class="topbar"><button class="link" data-go="home">← Home</button></div>
+      <h2>Choose a practice drive</h2>
+      <p class="muted">Each drive adds one new skill. Finish a drive to unlock the next one. Repeat any drive as many times as you like.</p>
+      <ol class="level-list" id="level-list"></ol>
+    </div>
+  </section>
+
+  <!-- BRIEFING -->
+  <section id="brief" class="screen" hidden>
+    <div class="wrap narrow">
+      <div class="topbar"><button class="link" data-go="levels">← All drives</button></div>
+<div class="boss-banner"><b>★ FINAL BOSS ★</b><span>The big city. Everything you've learned, all at once.</span></div>
+      <p class="eyebrow" id="brief-num"></p>
+      <h2 id="brief-name"></h2>
+      <div class="brief-meta" id="brief-meta"></div>
+      <div class="card"><h3>Skills covered</h3><ul id="brief-skills"></ul></div>
+      <div class="card tip"><h3>Real-world tip</h3><p id="brief-tip"></p></div>
+      <div class="actions"><button class="btn primary" id="brief-go">Start drive</button></div>
+    </div>
+  </section>
+
+  <!-- DRIVE -->
+  <section id="drive" class="screen" hidden>
+    <canvas id="game" aria-label="Top-down driving simulation"></canvas>
+    <div class="hud">
+      <div class="hud-top">
+        <div class="hud-level" id="hud-level"></div>
+        <div class="hud-progress" aria-hidden="true"><div id="hud-bar"></div></div>
+        <button class="btn small" id="btn-keys" title="Show or hide the controls key (K)">Keys</button>
+        <button class="btn small" id="btn-view">Driver view</button>
+        <button class="btn small" id="btn-pause">Pause</button>
+      </div>
+      <div class="speedo">
+        <div class="speed" id="hud-speedbox"><span id="hud-speed">0</span><small>mph</small></div>
+        <div class="limit"><small>SPEED<br>LIMIT</small><b id="hud-limit">25</b></div>
+      </div>
+      <div class="goal" id="hud-goal"></div>
+      <div class="mission" id="hud-mission" role="status" hidden></div>
+      <div class="recover" id="hud-recover" role="status" hidden></div>
+      <div class="keys" id="keys" aria-label="Controls key"></div>
+      <div class="coach" id="coach" role="status" aria-live="polite"></div>
+    </div>
+
+    <div class="touch" id="touch" hidden>
+      <div class="wheel-pad" id="wheel-pad"><div class="wheel" id="wheel"></div><small>Drag to steer</small></div>
+      <div class="pedals">
+        <button class="pedal brake" id="pedal-brake">Brake</button>
+        <button class="pedal gas" id="pedal-gas">Gas</button>
+      </div>
+    </div>
+
+    <div class="overlay" id="intro" hidden>
+      <div class="card intro-card" id="intro-card">
+        <div class="boss-banner"><b>★ FINAL BOSS ★</b><span>The big city. Everything you've learned, all at once.</span></div>
+        <p class="eyebrow" id="intro-num"></p>
+        <h2 id="intro-name"></h2>
+        <div id="intro-pic"></div>
+        <div class="intro-cols">
+          <div class="pause-info">
+            <h3>Your goal</h3>
+            <ol id="intro-steps"></ol>
+          </div>
+          <div class="pause-info">
+            <h3 id="intro-ctrl-title">Controls</h3>
+            <div id="intro-keys" class="keys-inline"></div>
+          </div>
+        </div>
+        <div class="actions center">
+          <button class="btn primary" id="intro-go">Start driving</button>
+        </div>
+        <p class="muted small">Press Enter to start. You can press Pause anytime to see this again.</p>
+      </div>
+    </div>
+
+    <div class="overlay" id="pause" hidden>
+      <div class="card">
+        <h2>Paused</h2>
+        <p class="muted">Nothing is moving. Take as long as you need.</p>
+        <div class="breath small-breath" id="breath-pause"><div class="breath-circle"></div><div class="breath-text"></div></div>
+        <div class="actions center">
+          <button class="btn primary" id="pause-resume">Keep driving</button>
+          <button class="btn" id="pause-controls-btn" aria-expanded="false">Show controls</button>
+          <button class="btn" id="pause-restart">Restart</button>
+          <button class="btn ghost" id="pause-quit">Quit</button>
+        </div>
+        <div class="pause-info">
+          <h3>How to finish this drive</h3>
+          <ol id="pause-steps"></ol>
+        </div>
+        <div class="pause-info" id="pause-help" hidden>
+          <h3 id="pause-help-title">Your controls</h3>
+          <table class="ctrl-table" id="pause-controls"></table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RESULTS -->
+  <section id="results" class="screen" hidden>
+    <div class="wrap">
+      <p class="eyebrow" id="res-level"></p>
+      <h2 id="res-title">Drive complete</h2>
+      <div class="result-note" id="res-note" hidden></div>
+      <div class="score-ring" id="res-ring"><div><span><b id="res-score">0</b><small>calm &amp; safe score</small></span></div></div>
+      <div class="lists">
+        <div class="card"><h3>What went well</h3><ul id="res-good" class="good-list"></ul></div>
+        <div class="card tip"><h3>Try next time</h3><ul id="res-next"></ul></div>
+      </div>
+      <div class="card">
+        <h3>How are you feeling now?</h3>
+        <input type="range" id="checkout-range" min="1" max="10" value="5" aria-label="How you feel after this drive, from 1 (calm) to 10 (anxious)">
+        <div class="scale-labels"><span>1 · Calm</span><span id="checkout-value">5</span><span>10 · Anxious</span></div>
+        <p class="muted" id="checkout-compare"></p>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="res-cert" hidden>Get your certificate</button>
+        <button class="btn primary" id="res-next-level">Next drive</button>
+        <button class="btn" id="res-retry">Drive it again</button>
+        <button class="btn ghost" id="res-levels">All drives</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROGRESS -->
+  <section id="progress" class="screen" hidden>
+    <div class="wrap">
+      <div class="topbar"><button class="link" data-go="home">← Home</button></div>
+      <h2>My progress</h2>
+      <div class="tiles">
+        <div class="tile"><b id="stat-drives">0</b><small>drives completed</small></div>
+        <div class="tile"><b id="stat-score">–</b><small>average calm &amp; safe score</small></div>
+        <div class="tile"><b id="stat-change">–</b><small>average change in how you felt after a drive (negative = calmer)</small></div>
+      </div>
+      <div class="card">
+        <h3>How you felt before and after each drive</h3>
+        <p class="muted small">1 = calm, 10 = anxious. Each pair of bars is one drive, oldest on the left.</p>
+        <div class="legend"><span><i class="sw-before"></i>Before the drive</span><span><i class="sw-after"></i>After the drive</span></div>
+        <canvas id="chart" aria-label="Bar chart of how you felt before and after each drive, from 1 calm to 10 anxious"></canvas>
+        <p class="muted" id="chart-empty"></p>
+      </div>
+      <div class="card">
+        <h3>Recent drives</h3>
+        <ul class="recent" id="history"></ul>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="btn-cert">View my certificate</button>
+        <button class="btn" id="unlock-all">Unlock all drives</button>
+        <button class="btn ghost" id="reset-progress">Reset progress</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- CERTIFICATE -->
+  <section id="certificate" class="screen" hidden>
+    <div class="wrap">
+      <div class="topbar"><button class="link" data-go="home">← Home</button></div>
+      <p class="eyebrow" id="cert-eyebrow">You did it!</p>
+      <h2 id="cert-head">Congratulations!</h2>
+      <p class="lead" id="cert-lead">You finished every drive with patience, care, and calm. Type your name on your certificate, then print it or save it as a PDF.</p>
+      <div class="cert" id="cert">
+        <div class="cert-inner">
+          <svg class="logo" viewBox="0 0 100 100" aria-hidden="true"><path d="M50 88C22 68 7 51 10 32 13 15 33 9 50 25 67 9 87 15 90 32 93 51 78 68 50 88Z" fill="none" stroke="#A44A3F" stroke-width="9" stroke-linejoin="round"/><path d="M50 49 15 41M50 49 85 41M50 49 50 83" stroke="#5A7431" stroke-width="7" stroke-linecap="round"/><circle cx="50" cy="49" r="11" fill="#F19C79" stroke="#A44A3F" stroke-width="3"/></svg>
+          <div class="cert-kicker">Certificate of completion</div>
+          <div class="cert-title">Wheel Be Fine Driver</div>
+          <div>This certifies that</div>
+          <input class="cert-name" id="cert-name" placeholder="Type your name" maxlength="40" aria-label="Your name">
+          <p class="cert-body" id="cert-body">completed all six Wheel Be Fine practice drives.</p>
+          <div class="cert-stamp">WHEEL BE FINE!</div>
+          <div class="cert-scores" id="cert-scores"></div>
+          <div class="cert-foot">
+            <div><b id="cert-date"></b>Date</div>
+            <div><b>The Wheel Be Fine Coach</b>Driving coach</div>
+          </div>
+        </div>
+        <div class="cert-seal" id="cert-seal">ALL 6<br>DRIVES<br>DONE</div>
+      </div>
+      <p class="muted small center">Remember: this is a practice certificate, not a driver's license. Keep learning with a licensed adult or instructor.</p>
+      <div class="actions center">
+        <button class="btn primary" id="cert-print">Print or save as PDF</button>
+        <button class="btn" id="cert-confetti">More confetti!</button>
+        <button class="btn ghost" data-go="home">Home</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ABOUT -->
+  <section id="about" class="screen" hidden>
+    <div class="wrap">
+      <div class="topbar"><button class="link" data-go="home">← Home</button></div>
+      <h2>How Wheel Be Fine works</h2>
+      <p class="lead">Driving can be nerve-wracking for new teen drivers. Wheel Be Fine gives you a safe place to practice first.</p>
+      <div class="about-grid">
+        <div class="card about-box"><span class="about-num">1</span><h3>Small steps</h3>
+          <p>Each drive will start in an empty parking lot. As the stages progress, one new challenge will be added at a time: a quiet road, stop signs, pedestrians, and other cars. Taking it a step at a time can make driving more manageable.</p></div>
+        <div class="card about-box"><span class="about-num">2</span><h3>Calm tools</h3>
+          <p>A guided breathing exercise before each session, a pause button always available, and a quick check-in before and after each drive can help ground you before practicing and will track your progress.</p></div>
+        <div class="card about-box"><span class="about-num">3</span><h3>Smooth controls</h3>
+          <p>Steering and pedals build up gradually, so you learn to brake early and turn smoothly instead of jerking the wheel.</p></div>
+        <div class="card about-box"><span class="about-num">4</span><h3>Go at your own pace</h3>
+          <p>Each drive has an associated difficulty level. Score 60 or more on a drive to complete it and unlock the next one. Finish all six to earn a certificate.</p></div>
+      </div>
+      <div class="card tip">
+        <h3>Disclaimer</h3>
+        <p>Wheel Be Fine is practice, not a replacement for real driving lessons. Always learn with a licensed adult or instructor, and follow your state's rules for learner's permits.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Confirmation pop-up -->
+  <div class="modal-back" id="modal" hidden>
+    <div class="card modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <h3 id="modal-title"></h3>
+      <div id="modal-body"></div>
+      <div class="actions">
+        <button class="btn primary" id="modal-ok"></button>
+        <button class="btn" id="modal-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="js/storage.js"></script>
+<script src="js/input.js"></script>
+<script src="js/physics.js"></script>
+<script src="js/world.js"></script>
+<script src="js/game.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
