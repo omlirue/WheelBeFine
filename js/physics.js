@@ -70,14 +70,13 @@ const Physics = {
     const dir = Math.abs(vx) > 0.05 ? Math.sign(vx) : 0;
 
     // ---- Forces along the car (engine, brakes, rolling resistance, drag) ----
-    let drive = 0, brake = 0;
-    if (input.reverse) {
-      drive = vx > -2.2 ? -input.brake * P.maxDriveForce * 0.5 : 0;   // reverse gear, walking pace (about 5 mph)
-    } else {
-      if (vx < -0.3) brake += input.throttle * P.brakeForce;       // gas while rolling backward slows you down
-      else drive = input.throttle * Math.min(P.maxDriveForce, P.enginePower / Math.max(Math.abs(vx), 1));
-      brake += input.brake * P.brakeForce;
-    }
+    // gearDir: +1 in Drive, -1 in Reverse. The gas pushes the car that way; the brake
+    // always slows the car down, whichever way it is rolling.
+    const gearDir = input.reverse ? -1 : 1;
+    let drive = 0, brake = input.brake * P.brakeForce;
+    if (vx * gearDir < -0.3) brake += input.throttle * P.brakeForce;   // rolling the "wrong" way: gas slows you first
+    else if (input.reverse) drive = vx > -3.6 ? -input.throttle * P.maxDriveForce * 0.6 : 0;  // reverse, up to about 8 mph
+    else drive = input.throttle * Math.min(P.maxDriveForce, P.enginePower / Math.max(Math.abs(vx), 1));
 
     // Weight transfer: braking (negative ax) loads the front, accelerating loads the rear
     const loadF = m * G * P.b / L - m * car.ax * P.cgHeight / L;
@@ -113,9 +112,9 @@ const Physics = {
     let vyDyn = vy + (ayBody - vx * r) * dt;
     let rDyn = r + ((P.a * (fyF * cos + fxF * sin) - P.b * fyR) / P.inertia) * dt;
 
-    // Brakes and friction bring you to a stop; they never push you backward
-    if (!input.reverse && dir !== 0 && Math.sign(vxNew) !== dir) vxNew = 0;
-    if (dir === 0 && !input.reverse && drive <= 0) vxNew = 0;
+    // Brakes and friction bring you to a stop; they never push you the other way
+    if (dir !== 0 && Math.sign(vxNew) !== dir && Math.sign(drive) !== -dir) vxNew = 0;
+    if (dir === 0 && drive === 0) vxNew = 0;
 
     // At walking speeds tire slip math gets jumpy, so blend into simple geometric steering
     const blend = vx > 0 ? Math.max(0, Math.min(1, (Math.abs(vx) - 2) / 2.5)) : 0;

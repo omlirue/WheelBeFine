@@ -117,10 +117,16 @@
       <div class="recover" id="hud-recover" role="status" hidden></div>
       <div class="keys" id="keys" aria-label="Controls key"></div>
       <div class="coach" id="coach" role="status" aria-live="polite"></div>
+      <div class="gears" id="gears" role="group" aria-label="Gear shifter">
+        <span class="gears-label">Gear</span>
+        <button class="gear-btn" data-gear="P" aria-label="Park">P</button>
+        <button class="gear-btn" data-gear="R" aria-label="Reverse">R</button>
+        <button class="gear-btn" data-gear="D" aria-label="Drive">D</button>
+      </div>
     </div>
 
     <div class="touch" id="touch" hidden>
-      <div class="wheel-pad" id="wheel-pad"><div class="wheel" id="wheel"></div><small>Drag to steer</small></div>
+      <div class="wheel-pad" id="wheel-pad"><div class="wheel" id="wheel"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="42" fill="none" stroke="#2B3236" stroke-width="11"/><path d="M50 50 9 56M50 50 91 56M50 50 50 92" stroke="#2B3236" stroke-width="9" stroke-linecap="round"/><circle cx="50" cy="50" r="12" fill="#3A4347"/><circle cx="50" cy="50" r="5" fill="#D95D4A"/><rect x="46" y="3" width="8" height="12" rx="2" fill="#D95D4A"/></svg></div><small>Turn the wheel in a circle</small></div>
       <div class="pedals">
         <button class="pedal brake" id="pedal-brake">Brake</button>
         <button class="pedal gas" id="pedal-gas">Gas</button>
@@ -144,9 +150,29 @@
           </div>
         </div>
         <div class="actions center">
-          <button class="btn primary" id="intro-go">Start driving</button>
+          <button class="btn primary" id="intro-go">Next: safety checklist</button>
         </div>
-        <p class="muted small">Press Enter to start. You can press Pause anytime to see this again.</p>
+        <p class="muted small">Press Enter to continue to your safety checklist. You can press Pause anytime to see these steps again.</p>
+      </div>
+    </div>
+
+    <div class="overlay" id="checklist" hidden>
+      <div class="card checklist-card" role="dialog" aria-modal="true" aria-labelledby="checklist-title">
+        <p class="eyebrow">Before you drive</p>
+        <h2 id="checklist-title">Safety checklist</h2>
+        <p class="muted small">Real drivers do these every time. Check each box in order.</p>
+        <ol class="checklist" id="checklist-items">
+          <li data-step="1"><label><input type="checkbox"><span class="cl-text"><b>Buckle your seat belt</b><small>and make sure everyone else's is buckled too</small></span></label></li>
+          <li data-step="2"><label><input type="checkbox"><span class="cl-text"><b>Adjust your rearview and side mirrors</b><small>so you can see behind and beside the car</small></span></label></li>
+          <li data-step="3"><label><input type="checkbox"><span class="cl-text"><b>Check for cars and pedestrians</b><small>make sure no one is approaching before you move</small></span></label></li>
+          <li data-step="4"><label><input type="checkbox"><span class="cl-text"><b>Put your foot on the brake and shift gears</b><small>choose Drive or Reverse, then check the box to start</small></span></label>
+            <div class="cl-gear" role="radiogroup" aria-label="Starting gear">
+              <button type="button" class="cl-gear-btn on" data-gear="D" aria-pressed="true">D · Drive</button>
+              <button type="button" class="cl-gear-btn" data-gear="R" aria-pressed="false">R · Reverse</button>
+            </div>
+          </li>
+        </ol>
+        <p class="cl-note" id="checklist-note" aria-live="polite"></p>
       </div>
     </div>
 

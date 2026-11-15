@@ -1,16 +1,20 @@
+// The practice drives (levels) and the map each one is built on.
+// Road drives use a loop shaped like a rounded rectangle. You drive clockwise,
+// so the right-hand lane is the inner lane.
+
 const ROAD_HALF = 56;       // half the width of the road (two lanes)
-const BIKE_LANE = 24;
-const CROSS_HALF_W = 46;    // half the width of a cross street at a traffic light       // width of the green bike lane (Manhattan drive)
+const BIKE_LANE = 24;       // width of the green bike lane (Manhattan drive)
+const CROSS_HALF_W = 46;    // half the width of a cross street at a traffic light
 const LANE_CENTER = 28;     // center of the right-hand lane, measured from the yellow line
 const TRACK = { W: 1800, H: 1100, R: 260 };
 
 const LEVELS = [
   {
     steps: [
-      'Press the gas gently so the car starts rolling forward.',
-      'Steer into the glowing yellow circle around cone 1. The yellow arrow next to your car always points to it.',
-      'When you reach a circle, the next cone lights up. Visit all 5 cones in order: 1, 2, 3, 4, 5.',
-      'Then drive into the green PARK box and brake until the speed reads 0 mph.'
+      'Complete the safety checklist. Step 4 shifts you into Drive (D). Then press the gas gently.',
+      'Drive through checkpoint 1, the glowing yellow circle painted on the ground. The yellow arrow next to your car always points to it.',
+      'When you reach a checkpoint, the next one lights up. Drive through all 5 in order: 1, 2, 3, 4, 5.',
+      'Then drive into the green PARK box, brake until the speed reads 0 mph, and shift into Park (P) to finish.'
     ],
     id: 1, type: 'lot', name: 'Empty Parking Lot', speedLimit: 10,
     short: 'Gentle gas, smooth braking, and steering at low speed',
@@ -20,8 +24,8 @@ const LEVELS = [
       'Braking smoothly to a full stop in a parking space',
     ],
     tip: 'Many new drivers start in an empty parking lot, like a school or church lot on a weekend morning. Low speeds and open space make it a low-stress place to get a feel for the pedals.',
-    startMsg: 'Your goal: drive your car into each yellow circle, starting with cone 1. The yellow arrow by your car points the way.',
-    cones: [
+    startMsg: 'Your goal: drive through each glowing checkpoint, starting with number 1. The yellow arrow by your car points the way.',
+    checkpoints: [
       { x: -520, y: -180 }, { x: -60, y: -300 }, { x: 460, y: -140 }, { x: 420, y: 250 }, { x: 40, y: 330 },
     ],
     finish: { x: -260, y: 330 },
@@ -135,6 +139,7 @@ const LEVELS = [
   },
 ];
 
+// Look and difficulty for each drive (shown on the drive list)
 const PASS_SCORE = 60;   // score needed to complete a drive and unlock the next one
 const LEVEL_EXTRAS = {
   1: { chartName: 'Parking Lot', difficulty: 1, diffLabel: 'Beginner', color: '#D4E09B', setting: 'Parking lot' },
@@ -145,6 +150,11 @@ const LEVEL_EXTRAS = {
   6: { chartName: 'Manhattan', difficulty: 5, diffLabel: 'Final boss', color: '#F6C85F', setting: 'Manhattan', boss: true },
 };
 LEVELS.forEach(l => Object.assign(l, LEVEL_EXTRAS[l.id]));
+// Every road drive starts in Park and ends in Park, like a real trip.
+LEVELS.filter(l => l.type === 'road').forEach(l => {
+  l.steps = ['Complete the safety checklist. Step 4 shifts you into Drive (D).', ...l.steps,
+    'After the finish line, stop in your lane and shift into Park (P) to end the drive.'];
+});
 
 // Small predictable random number generator, so trees are in the same spots every time.
 function mulberry32(seed) {
@@ -272,7 +282,7 @@ const World = {
     if (level.type === 'lot') {
       w.lot = { x: -700, y: -450, w: 1400, h: 900 };
       w.start = { x: -520, y: 320, a: -Math.PI / 2 };
-      w.cones = level.cones.map(c => ({ x: c.x, y: c.y }));
+      w.checkpoints = level.checkpoints.map(c => ({ x: c.x, y: c.y }));
       w.finish = { x: level.finish.x, y: level.finish.y };
       for (let i = 0; i < 170; i++) {
         const x = -1400 + rnd() * 2800, y = -1050 + rnd() * 2100;

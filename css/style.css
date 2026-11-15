@@ -243,7 +243,8 @@ input[type=range] { width: 100%; accent-color: var(--teal); height: 32px; }
   .mission { top: calc(max(12px, env(safe-area-inset-top)) + 134px); padding: 8px 12px; }
   .mission b { font-size: 17px; }
   .mission span { font-size: 12.5px; }
-  #drive.lot-drive.driver-view .coach { top: auto; bottom: 300px; left: 50%; right: auto; max-width: calc(100% - 24px); transform: translate(-50%, 8px); }
+  #drive.lot-drive.driver-view .coach { top: calc(max(12px, env(safe-area-inset-top)) + 214px); bottom: auto; left: 50%; right: auto; max-width: calc(100% - 24px); transform: translate(-50%, 8px); }
+  #drive.has-touch .coach { font-size: 14px; padding: 10px 14px; }
   #drive.lot-drive.driver-view .coach.show { transform: translate(-50%, 0); }
 }
 
@@ -304,7 +305,7 @@ kbd.on { background: var(--teal); color: #fff; border-color: var(--teal-d); tran
 .coach.tip { border-left-color: var(--warm); }
 #drive.has-touch .coach { bottom: 180px; }
 /* Driver's-seat view: the dashboard shows the speed, so move things out of its way */
-#drive.driver-view .speed { display: none; }
+/* The 900° steering wheel can cover the speedometer while turning, so the speed box stays visible */
 #drive.driver-view .coach { top: calc(max(12px, env(safe-area-inset-top)) + 140px); bottom: auto; transform: translate(-50%, -8px); }
 #drive.driver-view .coach.show { transform: translate(-50%, 0); }
 #drive.driver-view .recover { top: 48%; }
@@ -312,15 +313,6 @@ kbd.on { background: var(--teal); color: #fff; border-color: var(--teal-d); tran
 
 /* Touch controls */
 .touch { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-between; align-items: flex-end; padding: 12px 12px max(16px, env(safe-area-inset-bottom)); pointer-events: none; }
-.wheel-pad {
-  pointer-events: auto; width: 200px; height: 150px; border-radius: 20px; background: rgba(255, 255, 255, .35);
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
-  touch-action: none; user-select: none; -webkit-user-select: none;
-}
-.wheel-pad small { font-size: 12px; font-weight: 600; color: #1E2A2F; }
-.wheel { width: 96px; height: 96px; border-radius: 50%; border: 12px solid #2B3236; position: relative; }
-.wheel::before { content: ""; position: absolute; left: -12px; right: -12px; top: 50%; height: 10px; margin-top: -5px; background: #2B3236; }
-.wheel::after { content: ""; position: absolute; left: 50%; top: 50%; width: 10px; height: 36px; margin-left: -5px; background: #2B3236; }
 .pedals { display: flex; gap: 12px; align-items: flex-end; pointer-events: auto; margin-left: auto; }
 .pedal {
   font: inherit; font-weight: 800; border: 0; border-radius: 16px; width: 84px; height: 120px; color: #fff;
@@ -362,8 +354,6 @@ kbd.on { background: var(--teal); color: #fff; border-color: var(--teal-d); tran
   .speed span { font-size: 24px; }
   .goal { font-size: 13px; max-width: calc(100% - 196px); padding: 6px 10px; }
   .goal b { font-size: 13px; }
-  .wheel-pad { width: 160px; height: 130px; }
-  .wheel { width: 80px; height: 80px; border-width: 10px; }
   .pedal { width: 72px; }
 }
 
@@ -530,3 +520,72 @@ body.driving .bg-heart { display: none; }
 }
 #home .hero { padding-bottom: 0; }
 #home .actions { margin-top: 10px; }
+
+/* ---------- On-screen steering wheel (phones and tablets) ---------- */
+.wheel-pad {
+  pointer-events: auto; width: 210px; height: 200px; border-radius: 24px; background: rgba(255, 255, 255, .35);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab;
+}
+.wheel { width: 168px; height: 168px; will-change: transform; }
+.wheel svg { width: 100%; height: 100%; display: block; }
+.wheel-pad small { font-size: 12px; font-weight: 600; color: #1E2A2F; }
+
+/* ---------- Gear shifter: P / R / D ---------- */
+.gears {
+  position: absolute; right: 12px; bottom: max(16px, env(safe-area-inset-bottom)); pointer-events: auto;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  background: rgba(30, 35, 38, .88); border-radius: 16px; padding: 8px;
+}
+.gears-label { color: rgba(255,255,255,.7); font: 700 10px var(--sans); letter-spacing: .14em; text-transform: uppercase; }
+.gear-btn {
+  width: 48px; height: 44px; border-radius: 10px; border: 2px solid rgba(255,255,255,.18); background: transparent;
+  color: rgba(255,255,255,.75); font: 800 20px var(--sans); cursor: pointer; touch-action: manipulation;
+}
+.gear-btn:hover { border-color: rgba(255,255,255,.5); }
+.gear-btn.on[data-gear="P"] { background: #A9CBE8; border-color: #A9CBE8; color: #1C3550; }
+.gear-btn.on[data-gear="R"] { background: #F2994A; border-color: #F2994A; color: #3A1E05; }
+.gear-btn.on[data-gear="D"] { background: #7CE0A3; border-color: #7CE0A3; color: #12391F; }
+/* On phones: a row above the steering wheel, so your left thumb can shift
+   while your right thumb holds the brake. */
+#drive.has-touch .gears { right: auto; left: 12px; bottom: calc(max(16px, env(safe-area-inset-bottom)) + 214px); flex-direction: row; }
+#drive.has-touch .gears-label { writing-mode: vertical-rl; transform: rotate(180deg); }
+#drive.has-touch:not(.driver-view) .coach { bottom: 300px; }
+.keys li.gearkeys kbd { min-width: 24px; padding: 0 4px; }
+.mission.gear .bullseye { background: #7CE0A3; border-color: #3FA26B; color: #12391F; display: grid; place-items: center; font: 800 15px system-ui, sans-serif; }
+@media (max-width: 480px) {
+  .wheel-pad { width: 186px; height: 190px; }
+  .wheel { width: 152px; height: 152px; }
+  .pedal { width: 70px; }
+}
+
+/* ---------- Pre-drive safety checklist ---------- */
+.checklist-card { max-width: 520px !important; text-align: left !important; border: 2px solid var(--brick); }
+.checklist-card h2 { margin-bottom: 4px; }
+.checklist { list-style: none; margin: 14px 0 6px; padding: 0; counter-reset: cl; display: grid; gap: 10px; }
+.checklist li { counter-increment: cl; border: 2px solid var(--line); border-radius: 14px; padding: 12px 14px; background: var(--surface); transition: border-color .15s, background .15s, opacity .15s; }
+.checklist li label { display: flex; align-items: flex-start; gap: 12px; cursor: pointer; }
+.checklist li label::before {
+  content: counter(cl); flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--pistachio); color: var(--teal-d); font: 600 16px var(--serif); margin-top: 1px;
+}
+.checklist input[type=checkbox] { order: 3; margin-left: auto; width: 26px; height: 26px; flex-shrink: 0; accent-color: var(--teal); cursor: pointer; }
+.checklist .cl-text b { display: block; font-weight: 700; }
+.checklist .cl-text small { color: var(--muted); }
+.checklist li.next { border-color: var(--brick); box-shadow: 0 0 0 4px rgba(164, 74, 63, .10); }
+.checklist li.done { border-color: var(--teal); background: var(--teal-l); }
+.checklist li.done label::before { content: "✓"; background: var(--teal); color: #fff; font-family: var(--sans); }
+.checklist li.locked { opacity: .5; }
+.checklist li.locked label, .checklist li.locked input { cursor: not-allowed; }
+.checklist li.shake { animation: clshake .35s; }
+@keyframes clshake { 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+.cl-gear { display: flex; gap: 8px; margin: 10px 0 0 38px; }
+.cl-gear-btn {
+  font: 700 14px var(--sans); padding: 7px 12px; border-radius: 10px; cursor: pointer;
+  border: 2px solid var(--line); background: #fff; color: var(--ink);
+}
+.cl-gear-btn.on[data-gear="D"] { background: #7CE0A3; border-color: #3FA26B; color: #12391F; }
+.cl-gear-btn.on[data-gear="R"] { background: #F2994A; border-color: #C9721F; color: #3A1E05; }
+.checklist li.locked .cl-gear-btn { pointer-events: none; }
+.cl-note { min-height: 1.4em; margin: 6px 0 0; color: var(--brick); font-weight: 600; font-size: 14px; }
+@media (prefers-reduced-motion: reduce) { .checklist li.shake { animation: none; } }
