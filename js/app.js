@@ -1,72 +1,71 @@
-const CONTROL_HELP = {
-  keyboard: 'Up arrow (or W) = gas. Down arrow (or S) = brake; keep holding it when stopped to back up. Left and right arrows steer. Short taps give small, smooth turns.',
-  touch: 'Drag the wheel on the left to steer. Hold Gas and Brake on the right with your other thumb.',
-};
+// Screens and flow: home → check-in → breathing → choose a drive → drive → results.
 
 // Shown on the pause screen when "Show controls" is pressed.
 const CONTROL_ROWS = {
   keyboard: {
     name: 'Keyboard',
     rows: [
-      ['Gas', 'Up arrow or W. Tap it for a gentle push.'],
-      ['Brake', 'Down arrow or S. Press early and gently.'],
-      ['Back up', 'Keep holding Down arrow or S after the car stops.'],
-      ['Steer', 'Left / Right arrows or A / D. Short taps make small turns.'],
+      ['Gears', 'E shifts up (P → R → D), Q shifts down (D → R → P). Stop first, and hold S (brake) to shift out of Park. You can also click P, R, or D.'],
+      ['Gas', 'W. Tap it for a gentle push.'],
+      ['Brake', 'S. Press early and gently.'],
+      ['Back up', 'Stop, shift into R (Q from Drive), then press W gently.'],
+      ['Steer', 'A / D. Short taps make small turns.'],
       ['Switch view', 'V key, or the Driver view / Map view button'],
-      ['Pause', 'Space bar, P, or Esc'],
+      ['Pause', 'Space bar or Esc'],
     ],
   },
   touch: {
     name: 'Touch',
     rows: [
       ['Gas', 'Hold the green Gas button (bottom right).'],
+      ['Gears', 'Tap P, R, or D above the wheel. Stop first, and hold Brake to shift out of Park.'],
       ['Brake', 'Hold the red Brake button.'],
-      ['Back up', 'Keep holding Brake after the car stops.'],
-      ['Steer', 'Put your thumb on the wheel (bottom left) and drag left or right.'],
+      ['Back up', 'Stop, tap R, then hold Gas gently.'],
+      ['Steer', 'Put your thumb on the wheel and turn it in a circle, like a real steering wheel.'],
       ['Switch view', 'Driver view / Map view button at the top'],
       ['Pause', 'Pause button at the top'],
     ],
   },
 };
 
-// The controls key. Arrow keys get data-k so they light up when pressed.
+// The controls key. W A S D get data-k so they light up when pressed.
 function keysHtml(mode, withClose) {
   const close = withClose ? '<button id="keys-hide" aria-label="Hide controls key">×</button>' : '';
   const title = t => withClose ? '<div class="keys-title">' + t + close + '</div>' : '';
   if (mode === 'touch') {
     return '<ul>' +
       '<li><kbd data-k="up">Gas</kbd> Hold the green button to go forward</li>' +
-      '<li><kbd data-k="down">Brake</kbd> Hold the red button to slow down · keep holding to back up</li>' +
-      '<li><kbd data-k="left">◀</kbd><kbd data-k="right">▶</kbd> ' + 'Drag the wheel to steer' + '</li></ul>';
+      '<li><kbd data-k="down">Brake</kbd> Hold the red button to slow down</li>' +
+      '<li><kbd data-k="left">◀</kbd><kbd data-k="right">▶</kbd> Turn the wheel in a circle to steer</li>' +
+      '<li><kbd>P R D</kbd> Tap a gear above the wheel. Hold Brake to leave Park.</li></ul>';
   }
   return title('Controls') +
     '<div class="arrows">' +
-      '<div class="cell up"><kbd data-k="up">↑</kbd><small>Forward</small></div>' +
-      '<div class="cell left"><kbd data-k="left">←</kbd><small>Left</small></div>' +
-      '<div class="cell down"><kbd data-k="down">↓</kbd><small>Brake</small></div>' +
-      '<div class="cell right"><kbd data-k="right">→</kbd><small>Right</small></div>' +
+      '<div class="cell up"><kbd data-k="up">W</kbd><small>Gas</small></div>' +
+      '<div class="cell left"><kbd data-k="left">A</kbd><small>Left</small></div>' +
+      '<div class="cell down"><kbd data-k="down">S</kbd><small>Brake</small></div>' +
+      '<div class="cell right"><kbd data-k="right">D</kbd><small>Right</small></div>' +
     '</div><ul>' +
-      '<li><kbd>Hold ↓</kbd> Back up (when stopped)</li>' +
+      '<li class="gearkeys"><kbd>Q</kbd><kbd>E</kbd> Shift gear down / up</li>' +
       '<li><kbd>Space</kbd> Pause · <kbd style="min-width:22px">V</kbd> View</li></ul>' +
-    '<div class="muted" style="margin-top:4px">W A S D work too.</div>';
+    '<div class="muted" style="margin-top:4px">Hold S (brake) to shift out of Park.</div>';
 }
 
-const LOT_DIAGRAM = '<p>Drive into each yellow circle in order, then park in the green box:</p>' +
-  '<svg viewBox="0 0 340 130" role="img" aria-label="Diagram: the car drives through yellow circles 1 to 5, then parks in the green box">' +
+const LOT_DIAGRAM = '<p>Drive through each glowing checkpoint in order, then park in the green box:</p>' +
+  '<svg viewBox="0 0 340 130" role="img" aria-label="Diagram: the car drives through checkpoints 1 to 5, then parks in the green box">' +
   '<rect x="2" y="2" width="336" height="126" rx="12" fill="#646C76"/>' +
   '<path d="M40 104 C40 60 60 40 80 34 S150 20 170 30 S250 40 270 34 S300 80 280 96 S200 110 190 104 S120 96 110 104" fill="none" stroke="#F2C94C" stroke-width="3" stroke-dasharray="7 6"/>' +
   [[80, 34, 1], [170, 30, 2], [270, 34, 3], [280, 96, 4], [190, 104, 5]].map(([x, y, n]) =>
     '<circle cx="' + x + '" cy="' + y + '" r="15" fill="rgba(242,201,76,.35)" stroke="#F2C94C" stroke-width="2.5"/>' +
-    '<circle cx="' + x + '" cy="' + y + '" r="4" fill="#F07F2E"/>' +
-    '<circle cx="' + (x + 13) + '" cy="' + (y - 12) + '" r="7.5" fill="#1E2A2F"/>' +
-    '<text x="' + (x + 13) + '" y="' + (y - 8.5) + '" font-size="10" font-weight="700" fill="#fff" text-anchor="middle" font-family="system-ui">' + n + '</text>').join('') +
+    '<circle cx="' + x + '" cy="' + y + '" r="8" fill="#1E2A2F"/>' +
+    '<text x="' + x + '" y="' + (y + 3.5) + '" font-size="10" font-weight="700" fill="#F2C94C" text-anchor="middle" font-family="system-ui">' + n + '</text>').join('') +
   '<rect x="88" y="86" width="44" height="34" rx="3" fill="rgba(63,162,107,.45)" stroke="#7CE0A3" stroke-width="2" stroke-dasharray="5 4"/>' +
   '<text x="110" y="107" font-size="11" font-weight="800" fill="#fff" text-anchor="middle" font-family="system-ui">PARK</text>' +
   '<rect x="31" y="98" width="18" height="28" rx="4" fill="#D95D4A"/><rect x="34" y="102" width="12" height="6" rx="1.5" fill="#CFE3F0"/>' +
   '<text x="40" y="94" font-size="10" font-weight="700" fill="#fff" text-anchor="middle" font-family="system-ui">You</text>' +
   '</svg>';
 
-// A burst of confetti in the app's colors
+// A burst of confetti in the app's colors. Skipped if the user prefers less motion.
 function confetti(amount = 170) {
   if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   let cv = document.getElementById('confetti');
@@ -281,7 +280,9 @@ const App = {
     this.$('btn-pause').onclick = () => this.pause();
     this.$('btn-view').onclick = e => { this.toggleView(); e.currentTarget.blur(); };
     this.$('pause-resume').onclick = () => this.resume();
-    this.$('intro-go').onclick = () => this.beginDrive();
+    this.$('intro-go').onclick = () => this.showChecklist();
+    this.setupChecklist();
+    document.querySelectorAll('.gear-btn').forEach(b => b.addEventListener('click', e => { Game.shift(b.dataset.gear); e.currentTarget.blur(); }));
     this.$('btn-keys').onclick = e => { this.toggleKeys(); e.currentTarget.blur(); };
     this.$('pause-controls-btn').onclick = () => this.showPauseControls(this.$('pause-help').hidden);
     this.$('pause-restart').onclick = () => { this.resume(); this.startDrive(this.level); };
@@ -322,18 +323,21 @@ const App = {
     window.addEventListener('keydown', e => {
       if (this.current !== 'drive') return;
       if (!this.$('intro').hidden) {
-        if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); this.beginDrive(); }
+        if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); this.showChecklist(); }
         return;
       }
+      if (!this.$('checklist').hidden) return;   // checklist handles its own keys (Tab and Space)
       if (e.code === 'KeyK' && this.$('pause').hidden) this.toggleKeys();
-      if (e.code === 'Space' || e.code === 'KeyP' || e.code === 'Escape') {
+      if (this.$('pause').hidden && e.code === 'KeyE') Game.shiftBy(1);    // shift up toward Drive
+      if (this.$('pause').hidden && e.code === 'KeyQ') Game.shiftBy(-1);   // shift down toward Park
+      if (e.code === 'Space' || e.code === 'Escape') {
         e.preventDefault();
         if (this.$('pause').hidden) this.pause(); else this.resume();
       }
       if (e.code === 'KeyV' && this.$('pause').hidden) this.toggleView();
     });
     document.addEventListener('visibilitychange', () => {
-      if (document.hidden && this.current === 'drive' && this.$('intro').hidden) this.pause();
+      if (document.hidden && this.current === 'drive' && this.$('intro').hidden && this.$('checklist').hidden) this.pause();
     });
   },
 
@@ -411,7 +415,7 @@ const App = {
     this.$('touch').hidden = !showTouch;
     this.$('drive').classList.toggle('has-touch', showTouch);
     this.$('drive').classList.toggle('lot-drive', lv.type === 'lot');
-    Game.bottomInset = showTouch ? 165 : 0;
+    Game.bottomInset = showTouch ? 290 : 0;
     this.$('hud-level').textContent = lv.id + '. ' + lv.name;
     this.$('hud-limit').textContent = lv.speedLimit;
     this.$('pause').hidden = true;
@@ -419,6 +423,7 @@ const App = {
     Input.reset();
     Game.start(lv, r => this.showResults(r));
     this.renderKeys();
+    this.$('checklist').hidden = true;
     this.showIntro(lv);
   },
 
@@ -436,11 +441,75 @@ const App = {
     this.$('intro-go').focus();
   },
 
+  // ---------- Pre-drive safety checklist ----------
+  // Four steps that must be checked in order. Checking step 4 shifts into the chosen
+  // gear (your foot is "on the brake" for that step) and starts the drive.
+  setupChecklist() {
+    const items = [...this.$('checklist-items').children];
+    items.forEach((li, i) => {
+      const box = li.querySelector('input');
+      box.addEventListener('click', e => {
+        if (i !== this.clStep) {
+          e.preventDefault();               // out of order: undo the click
+          const cur0 = items[this.clStep];
+          if (cur0) setTimeout(() => cur0.querySelector('input').focus(), 0);
+          if (i > this.clStep) {
+            this.$('checklist-note').textContent = 'Do step ' + (this.clStep + 1) + ' first. The steps go in order.';
+            const cur = items[this.clStep];
+            cur.classList.remove('shake'); void cur.offsetWidth; cur.classList.add('shake');
+          }
+          return;
+        }
+        this.clStep++;
+        this.$('checklist-note').textContent = '';
+        this.renderChecklist();
+        if (this.clStep === items.length) setTimeout(() => this.beginDrive(), 450);
+      });
+    });
+    this.clGear = 'D';
+    document.querySelectorAll('.cl-gear-btn').forEach(b => b.addEventListener('click', () => {
+      this.clGear = b.dataset.gear;
+      document.querySelectorAll('.cl-gear-btn').forEach(x => {
+        x.classList.toggle('on', x === b);
+        x.setAttribute('aria-pressed', String(x === b));
+      });
+    }));
+  },
+
+  renderChecklist() {
+    [...this.$('checklist-items').children].forEach((li, i) => {
+      const box = li.querySelector('input');
+      box.checked = i < this.clStep;
+      box.setAttribute('aria-disabled', String(i !== this.clStep));
+      li.classList.toggle('done', i < this.clStep);
+      li.classList.toggle('next', i === this.clStep);
+      li.classList.toggle('locked', i > this.clStep);
+    });
+    const next = this.$('checklist-items').children[this.clStep];
+    if (next) next.querySelector('input').focus();
+  },
+
+  showChecklist() {
+    this.$('intro').hidden = true;
+    this.clStep = 0;
+    this.clGear = 'D';
+    document.querySelectorAll('.cl-gear-btn').forEach(x => {
+      const on = x.dataset.gear === 'D';
+      x.classList.toggle('on', on);
+      x.setAttribute('aria-pressed', String(on));
+    });
+    this.$('checklist-note').textContent = '';
+    this.$('checklist').hidden = false;
+    this.renderChecklist();
+  },
+
   beginDrive() {
     this.$('intro').hidden = true;
+    this.$('checklist').hidden = true;
     Input.reset();
     Game.paused = false;
     Game.last = performance.now();
+    Game.shift(this.clGear || 'D', { brakeOn: true });   // step 4: foot on the brake, shift gears
   },
 
   renderKeys() {
