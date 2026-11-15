@@ -1,6 +1,6 @@
 // The driving simulation: car physics, driving rules, the coach, and drawing.
 
-const CAR_LEN = 46, CAR_W = 24, WHEELBASE = 30;
+const CAR_LEN = 46, CAR_W = 24;   // car size in screen units (the physics uses real meters)
 const PX_PER_MPH = 6;          // 25 mph = 150 world units per second
 const PED_SPEED = 30, AI_SPEED = 100;
 const PLAYER_COLOR = '#D95D4A';   // your car: a cheerful coral
@@ -8,24 +8,40 @@ const BIKE_OFF = ROAD_HALF + BIKE_LANE / 2;   // middle of the bike lane
 const SHIRTS = ['#C0392B', '#2D9CDB', '#F2994A', '#6FCF97', '#9B51E0', '#F2C94C'];
 const STOP_BACK = 58;          // stop line distance before the middle of an intersection
 const CROSS_HALF = 46;         // half the width of a cross street
-const TARGET_R = 58;           // drive within this distance of a cone to count it
+const TARGET_R = 58;           // drive within this distance of a checkpoint's center to count it
 
 // Plain-language hints that match the controls the player is using.
 function gasHint() {
-  return Input.mode === 'touch' ? 'Hold the green Gas button' : 'Press and hold the Up arrow (or W)';
+  return Input.mode === 'touch' ? 'Hold the green Gas button' : 'Press and hold W';
 }
 function brakeHint() {
-  return Input.mode === 'touch' ? 'Hold the red Brake button' : 'Press the Down arrow (or S)';
+  return Input.mode === 'touch' ? 'Hold the red Brake button' : 'Press S';
 }
 function steerHint(dir) {
   if (Input.mode === 'touch') return 'Drag the wheel to the ' + dir;
-  return 'Press the ' + (dir === 'left' ? 'Left' : 'Right') + ' arrow';
+  return 'Press ' + (dir === 'left' ? 'A' : 'D');
 }
 
 // How to back up with the controls the player is using.
 function reverseHint() {
-  return Input.mode === 'touch' ? 'keep holding Brake' : 'hold the Down arrow (or S)';
+  return 'shift into R (' + shiftHint('R') + '), then press the gas gently';
 }
+
+// How to change gears. Leaving Park needs your foot on the brake, like a real car.
+function shiftHint(g) {
+  if (Input.mode === 'touch') return 'hold Brake and tap ' + g;
+  return (Input.gear === 'P' ? 'hold S and press ' : 'press ') + gearKeys(g);
+}
+
+// On a keyboard, E shifts up (P → R → D) and Q shifts down (D → R → P), like a racing game.
+const GEAR_ORDER = ['P', 'R', 'D'];
+function gearKeys(g) {
+  const n = GEAR_ORDER.indexOf(g) - GEAR_ORDER.indexOf(Input.gear);
+  if (n === 0) return 'nothing';
+  const key = n > 0 ? 'E' : 'Q';
+  return Math.abs(n) === 2 ? key + ' twice' : key;
+}
+const GEAR_NAMES = { P: 'Park', R: 'Reverse', D: 'Drive' };
 
 function computeScore(st) {
   const penalty =
@@ -76,10 +92,9 @@ const Game = {
     this.P = 0;                // how far along the lap you've driven
     this.lastS = this.world.track ? this.world.track.project(s.x, s.y).s : 0;
     this.offset = LANE_CENTER;
-    this.revHold = 0;
     this.done = false;
     this.paused = false;
-    this.coneIdx = 0;
+    this.cpIdx = 0;
     this.flags = {};
     this.cool = {};
     this.queue = [];
@@ -90,6 +105,7 @@ const Game = {
     this._mph = -1;
     this._goal = null;
     this._mission = null;
+    this._gear = null;
     this.recover = null;
     this.hints = null;
     this._rec = null;
@@ -121,7 +137,10 @@ const Game = {
     };
 
     this.resize();
-    this.say(level.startMsg, 'info');
+    Input.gear = 'P';          // every drive starts in Park
+    this.lapDone = false;
+    this.startedOnce = false;
+    this.say('You\'re in Park. To start, ' + shiftHint('D') + ' (Drive).', 'info');
     this.last = performance.now();
     this.raf = requestAnimationFrame(t => this.loop(t));
   },
@@ -145,6 +164,58 @@ const Game = {
     this.render();
     this.updateHud();
     this.raf = requestAnimationFrame(tt => this.loop(tt));
+  },
+
+  // ---------- Gears ----------
+  // Change gear. Like a real automatic car: you must be stopped, and you need your
+  // foot on the brake to shift out of Park.
+  shift(g, opts = {}) {
+    if (this.done || g === Input.gear) return false;
+    const sayNow = (text, key) => { this.queue = []; this.current = null; this.coachT = 1; this.say(text, 'tip', key, 2); };
+    if (Math.abs(this.car.v) > 6) {
+      sayNow('Come to a complete stop before you change gears.', 'shiftMoving');
+      return false;
+    }
+    const brakeOn = Input.brake > 0.05 || Input.keys.KeyS || Input.touch.brake;
+    if (Input.gear === 'P' && !brakeOn && !opts.brakeOn) {
+      sayNow('Press and hold the brake first, then shift out of Park. (' + shiftHint(g) + ')', 'shiftBrake');
+      return false;
+    }
+    Input.gear = g;
+    this.queue = [];
+    this.current = null;
+    this.coachEl.classList.remove('show');
+    if (g === 'D') {
+      if (!this.startedOnce) {
+        this.startedOnce = true;
+        this.say('In Drive. ' + this.level.startMsg, 'good');
+      } else this.say('In Drive. Ease off the brake and press the gas gently.', 'info', 'gearD', 2);
+    } else if (g === 'R') {
+      this.say('In Reverse. Look behind you, then press the gas gently to back up.', 'info', 'gearR', 2);
+    } else if (this.readyToPark()) {
+      this.finish();
+    } else {
+      this.say('In Park.', 'info', 'gearP', 2);
+    }
+    return true;
+  },
+
+  // Is the car somewhere it's allowed to end the drive?
+  readyToPark() {
+    const W = this.world, c = this.car;
+    if (Math.abs(c.v) > 6) return false;
+    if (W.type === 'lot') {
+      const f = W.finish;
+      return this.cpIdx >= W.checkpoints.length && Math.abs(c.x - f.x) < 42 && Math.abs(c.y - f.y) < 30;
+    }
+    return this.lapDone;
+  },
+
+  // Keyboard gear shifting: E moves one step toward Drive, Q one step toward Park.
+  shiftBy(dir) {
+    const i = GEAR_ORDER.indexOf(Input.gear) + dir;
+    if (i < 0 || i >= GEAR_ORDER.length) return false;
+    return this.shift(GEAR_ORDER[i]);
   },
 
   // ---------- Coach messages ----------
@@ -180,14 +251,16 @@ const Game = {
     const brk = Input.brake;
     const prevV = c.v;
 
-    // Holding the brake after the car has stopped shifts into reverse
-    if (brk > 0.02 && c.v < 7) this.revHold += dt;
-    else this.revHold = 0;
-    const reverse = this.revHold > 0.4;
-
-    // Realistic car physics (see physics.js). Grass has about half the grip of asphalt.
-    Physics.step(c, { throttle: Input.throttle, brake: brk, steer: Input.steer, reverse }, dt,
-      this.offroad ? { mu: 0.5, rolling: 0.06 } : { mu: 0.9, rolling: 0.013 });
+    // In Park the car is held still. Otherwise run the realistic car physics (see
+    // physics.js), with the gas pushing forward in Drive and backward in Reverse.
+    // Grass has about half the grip of asphalt.
+    if (Input.gear === 'P') {
+      c.v = 0; c.vy = 0; c.r = 0; c.ax = 0; c.ay = 0; c.skidFront = c.skidRear = false;
+      if (Input.throttle > 0.3) this.say('You\'re in Park, so the car won\'t move. ' + (this.readyToPark() ? 'You\'re parked: this drive is done!' : 'To drive, ' + shiftHint('D') + '.'), 'tip', 'parkGas', 5);
+    } else {
+      Physics.step(c, { throttle: Input.throttle, brake: brk, steer: Input.steer, reverse: Input.gear === 'R' }, dt,
+        this.offroad ? { mu: 0.5, rolling: 0.06 } : { mu: 0.9, rolling: 0.013 });
+    }
 
     // Skids: the tires were asked for more grip than they have
     // A real skid lasts a moment: only count it after about 0.2 s of sliding
@@ -330,33 +403,36 @@ const Game = {
       this.flags.curb = false;
     }
 
-    const target = W.cones[this.coneIdx];
+    const target = W.checkpoints[this.cpIdx];
     if (target && Math.hypot(target.x - c.x, target.y - c.y) < TARGET_R) {
-      this.coneIdx++;
-      const left = W.cones.length - this.coneIdx;
+      this.cpIdx++;
+      const left = W.checkpoints.length - this.cpIdx;
       this.queue = [];
-      if (left > 1) this.say('Nice! ' + left + ' cones left. Steer into the next yellow circle.', 'good');
-      else if (left === 1) this.say('Great! 1 cone left. Steer into the last yellow circle.', 'good');
-      else this.say('All cones done! Last step: drive into the green box and brake until you reach 0 mph.', 'info');
+      if (left > 1) this.say('Checkpoint! ' + left + ' to go. Head for the next glowing circle.', 'good');
+      else if (left === 1) this.say('Checkpoint! Just 1 more to go.', 'good');
+      else this.say('All checkpoints done! Last step: drive into the green box and brake until you reach 0 mph.', 'info');
     }
-    if (this.coneIdx >= W.cones.length) {
+    if (this.cpIdx >= W.checkpoints.length) {
       const f = W.finish;
       const inBox = Math.abs(c.x - f.x) < 42 && Math.abs(c.y - f.y) < 30;
-      if (inBox && Math.abs(c.v) < 3) this.finish();
+      if (inBox && Math.abs(c.v) < 3) this.say('Perfect spot! Now shift into Park to finish (' + (Input.mode === 'touch' ? 'tap P' : 'press ' + gearKeys('P')) + ').', 'info', 'hintShiftP', 6);
       else if (inBox) this.say('You\'re in the PARK box! ' + brakeHint() + ' until the speed reads 0.', 'info', 'hintPark', 5);
     }
 
     // Friendly hints if it looks like you're not sure what to do
     const h = this.hints || (this.hints = { idle: 0, aim: 0 });
     const dt = this.lastDt || 0;
-    h.idle = Math.abs(c.v) < 2 && Input.throttle < 0.05 && !this.recover ? h.idle + dt : 0;
-    if (h.idle > 3) this.say('To start rolling: ' + gasHint() + '.', 'tip', 'hintGas', 9);
-    const goal = W.cones[this.coneIdx] || W.finish;
+    h.idle = Math.abs(c.v) < 2 && Input.throttle < 0.05 && !this.recover && !this.readyToPark() ? h.idle + dt : 0;
+    if (h.idle > 3) {
+      if (Input.gear === 'P') this.say('You\'re in Park. To start, ' + shiftHint('D') + '.', 'tip', 'hintGas', 9);
+      else this.say('To start rolling: ' + gasHint() + '.', 'tip', 'hintGas', 9);
+    }
+    const goal = W.checkpoints[this.cpIdx] || W.finish;
     let diff = Math.atan2(goal.y - c.y, goal.x - c.x) - c.a;
     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
     h.aim = c.v > 15 && Math.abs(diff) > 0.9 ? h.aim + dt : 0;
     if (h.aim > 1.6) {
-      const what = this.coneIdx < W.cones.length ? 'cone ' + (this.coneIdx + 1) : 'the green PARK box';
+      const what = this.cpIdx < W.checkpoints.length ? 'checkpoint ' + (this.cpIdx + 1) : 'the green PARK box';
       this.say('Turn toward ' + what + ': ' + steerHint(diff > 0 ? 'right' : 'left') + '. The yellow arrow shows the way.', 'tip', 'hintSteer', 8);
     }
   },
@@ -466,7 +542,11 @@ const Game = {
     if (this.ai) this.updateAi(dt);
     if (W.city) { this.updateLights(dt); this.updateTraffic(dt); this.updateCity(dt); }
 
-    if (this.P >= L - 30) this.finish();
+    if (this.P >= L - 30 && !this.lapDone) {
+      this.lapDone = true;
+      this.queue = [];
+      this.say('You crossed the finish line! Brake to a full stop in your lane, then shift into Park to finish.', 'good');
+    }
   },
 
   pedStart() {
@@ -767,6 +847,14 @@ const Game = {
 
   // ---------- HUD ----------
   updateHud() {
+    if (Input.gear !== this._gear) {
+      this._gear = Input.gear;
+      document.querySelectorAll('.gear-btn').forEach(b => {
+        const on = b.dataset.gear === Input.gear;
+        b.classList.toggle('on', on);
+        b.setAttribute('aria-pressed', String(on));
+      });
+    }
     if (!this.keyEls) this.keyEls = {};
     for (const k of ['up', 'down', 'left', 'right']) {
       const on = k === 'up' ? Input.throttle > 0.05 : k === 'down' ? Input.brake > 0.05
@@ -783,7 +871,7 @@ const Game = {
       this.hud.speedBox.classList.toggle('over', mph > this.level.speedLimit + 3);
     }
     let pct;
-    if (this.world.type === 'lot') pct = (this.coneIdx + (this.done ? 1 : 0)) / (this.world.cones.length + 1);
+    if (this.world.type === 'lot') pct = (this.cpIdx + (this.done ? 1 : 0)) / (this.world.checkpoints.length + 1);
     else pct = this.P / this.world.track.length;
     this.hud.bar.style.width = Math.max(0, Math.min(100, pct * 100)).toFixed(1) + '%';
     const goal = this.goalHtml();
@@ -795,15 +883,19 @@ const Game = {
     const lot = this.world.type === 'lot';
     this.hud.goal.hidden = lot;
     let mission = '';
-    if (lot && !this.done && !this.recover) {
-      const W = this.world, c = this.car, target = W.cones[this.coneIdx] || W.finish;
-      const ft = Math.max(0, Math.round((Math.hypot(target.x - c.x, target.y - c.y) - (this.coneIdx < W.cones.length ? TARGET_R : 0)) / 3 / 5) * 5);
-      if (this.coneIdx < W.cones.length) {
-        mission = '<div class="bullseye"></div><div><b>Drive into cone ' + (this.coneIdx + 1) + ' of ' + W.cones.length + '</b>' +
-          '<span>Steer your car into the glowing yellow circle · ' + (ft ? 'about ' + ft + ' ft away' : 'almost there!') + '</span></div>';
+    if (lot && !this.done && Input.gear === 'P' && !this.startedOnce) {
+      mission = '<div class="bullseye">D</div><div><b>Shift into Drive to start</b><span>' + shiftHint('D').replace(/^./, m => m.toUpperCase()) + '</span></div>';
+    } else if (lot && !this.done && this.readyToPark()) {
+      mission = '<div class="bullseye">P</div><div><b>Shift into Park to finish</b><span>You\'re stopped in the box. Now ' + (Input.mode === 'touch' ? 'tap P' : 'press ' + gearKeys('P')) + '.</span></div>';
+    } else if (lot && !this.done && !this.recover) {
+      const W = this.world, c = this.car, target = W.checkpoints[this.cpIdx] || W.finish;
+      const ft = Math.max(0, Math.round((Math.hypot(target.x - c.x, target.y - c.y) - (this.cpIdx < W.checkpoints.length ? TARGET_R : 0)) / 3 / 5) * 5);
+      if (this.cpIdx < W.checkpoints.length) {
+        mission = '<div class="bullseye"></div><div><b>Drive through checkpoint ' + (this.cpIdx + 1) + ' of ' + W.checkpoints.length + '</b>' +
+          '<span>Drive into the glowing circle on the ground · ' + (ft ? 'about ' + ft + ' ft away' : 'almost there!') + '</span></div>';
       } else {
         mission = '<div class="bullseye">P</div><div><b>Now park in the green box</b>' +
-          '<span>Drive into the PARK box, then brake to 0 mph · ' + (ft > 5 ? 'about ' + ft + ' ft away' : 'you\'re there, brake!') + '</span></div>';
+          '<span>Drive in, brake to 0 mph, then shift to P · ' + (ft > 5 ? 'about ' + ft + ' ft away' : 'you\'re there, brake!') + '</span></div>';
       }
     }
     if (mission !== this._mission) {
@@ -811,6 +903,7 @@ const Game = {
       this.hud.mission.innerHTML = mission;
       this.hud.mission.hidden = !mission;
       this.hud.mission.classList.toggle('park', mission.includes('>P<'));
+      this.hud.mission.classList.toggle('gear', mission.includes('>D<'));
     }
     const rec = this.recover && !this.done ? this.recover.mode : null;
     if (rec !== this._rec) {
@@ -832,15 +925,17 @@ const Game = {
   goalHtml() {
     const W = this.world;
     if (this.done) return '<b>Drive complete!</b><span>Nice work.</span>';
+    if (W.type !== 'lot' && Input.gear === 'P' && !this.startedOnce) return '<b>Ready to go</b><span class="next">→ ' + shiftHint('D').replace(/^./, m => m.toUpperCase()) + ' to start</span>';
+    if (W.type !== 'lot' && this.lapDone) return '<b>Lap complete!</b><span class="next">→ Stop in your lane, then shift into Park (P) to finish</span>';
     if (this.recover) {
       const back = this.recover.mode === 'back';
       return '<b>' + (W.type === 'lot' ? 'Against the curb' : 'Off the road') + '</b><span class="next">→ ' +
         (back ? 'Back up, then steer ' + (W.type === 'lot' ? 'away from the curb' : 'toward the road') : 'Drive forward toward the road') + '</span>';
     }
     if (W.type === 'lot') {
-      const n = W.cones.length, left = n - this.coneIdx;
-      if (left > 0) return '<b>Cones left: ' + left + ' of ' + n + '</b><span class="next">→ Steer into the glowing yellow circle</span>';
-      return '<b>Last step: park</b><span class="next">→ Stop inside the green box (0 mph)</span>';
+      const n = W.checkpoints.length, left = n - this.cpIdx;
+      if (left > 0) return '<b>Checkpoints left: ' + left + ' of ' + n + '</b><span class="next">→ Drive through the glowing circle</span>';
+      return '<b>Last step: park</b><span class="next">→ Stop inside the green box, then shift to P</span>';
     }
     const pct = Math.max(0, Math.min(99, Math.floor(this.P / W.track.length * 100)));
     let html = '<b>Goal: one lap · ' + pct + '% done</b>';
@@ -1209,7 +1304,7 @@ const Game = {
     ctx.stroke();
 
     // Finish parking box
-    const f = W.finish, active = this.coneIdx >= W.cones.length;
+    const f = W.finish, active = this.cpIdx >= W.checkpoints.length;
     ctx.fillStyle = active ? 'rgba(63,162,107,' + (0.3 + 0.15 * Math.sin(t * 4)) + ')' : 'rgba(63,162,107,0.12)';
     ctx.fillRect(f.x - 48, f.y - 34, 96, 68);
     ctx.setLineDash([10, 8]);
@@ -1223,8 +1318,8 @@ const Game = {
     ctx.fillText('PARK', f.x, f.y + 1);
     if (active && !this.done) this.tag(f.x, f.y - 56, 'PARK HERE');
 
-    W.cones.forEach((cn, i) => {
-      const done = i < this.coneIdx, next = i === this.coneIdx;
+    W.checkpoints.forEach((cn, i) => {
+      const done = i < this.cpIdx, next = i === this.cpIdx;
       if (next) {
         // The whole circle you need to drive into
         ctx.fillStyle = 'rgba(242,201,76,' + (0.28 + 0.12 * Math.sin(t * 4)) + ')';
@@ -1236,23 +1331,28 @@ const Game = {
         ctx.stroke();
         this.tag(cn.x, cn.y - TARGET_R - 20, 'DRIVE HERE');
       }
-      ctx.globalAlpha = done ? 0.35 : 1;
-      if (!done) {
-        // Number label so the order is clear
-        ctx.fillStyle = next ? '#1E2A2F' : 'rgba(30,42,47,0.55)';
-        ctx.beginPath(); ctx.arc(cn.x + 16, cn.y - 16, 10, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#fff';
-        ctx.font = 'bold 12px system-ui, sans-serif';
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(i + 1, cn.x + 16, cn.y - 15.5);
+      // Checkpoints are painted on the ground, so there's nothing to hit.
+      if (!done && !next) {
+        ctx.setLineDash([12, 10]);
+        ctx.strokeStyle = 'rgba(242,201,76,0.55)';
+        ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(cn.x, cn.y, TARGET_R * 0.8, 0, Math.PI * 2); ctx.stroke();
+        ctx.setLineDash([]);
       }
-      ctx.fillStyle = '#F07F2E';
-      ctx.beginPath(); ctx.arc(cn.x, cn.y, 11, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#fff';
-      ctx.beginPath(); ctx.arc(cn.x, cn.y, 6.5, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#F07F2E';
-      ctx.beginPath(); ctx.arc(cn.x, cn.y, 3.5, 0, Math.PI * 2); ctx.fill();
-      ctx.globalAlpha = 1;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      if (done) {
+        ctx.fillStyle = 'rgba(90,154,76,0.55)';
+        ctx.beginPath(); ctx.arc(cn.x, cn.y, 15, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 18px system-ui, sans-serif';
+        ctx.fillText('✓', cn.x, cn.y + 1);
+      } else {
+        ctx.fillStyle = next ? '#1E2A2F' : 'rgba(30,42,47,0.6)';
+        ctx.beginPath(); ctx.arc(cn.x, cn.y, next ? 19 : 15, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = next ? '#F2C94C' : '#fff';
+        ctx.font = 'bold ' + (next ? 20 : 15) + 'px system-ui, sans-serif';
+        ctx.fillText(i + 1, cn.x, cn.y + 1);
+      }
     });
   },
 
@@ -1271,7 +1371,7 @@ const Game = {
 
   drawGuide() {
     const ctx = this.ctx, c = this.car, W = this.world;
-    const target = W.cones[this.coneIdx] || (this.done ? null : W.finish);
+    const target = W.checkpoints[this.cpIdx] || (this.done ? null : W.finish);
     if (!target) return;
     const dx = target.x - c.x, dy = target.y - c.y, d = Math.hypot(dx, dy);
     if (d < 110) return;
@@ -1513,15 +1613,29 @@ const Game = {
       layer(d3.lot, '#646C76');
       layer(d3.white, 'rgba(255,255,255,0.8)');
       const pulse = Math.sin(t * 4);
-      const active = this.coneIdx >= W.cones.length;
+      const active = this.cpIdx >= W.checkpoints.length;
       const f = W.finish;
       const rect = (x, y, w, h) => [{ x, y }, { x: x + w, y }, { x: x + w, y: y + h }, { x, y: y + h }];
       const box = [rect(f.x - 48, f.y - 34, 96, 4), rect(f.x - 48, f.y + 30, 96, 4), rect(f.x - 48, f.y - 34, 4, 68), rect(f.x + 44, f.y - 34, 4, 68)];
       layer(d3.finish, active ? 'rgba(63,162,107,' + (0.5 + 0.2 * pulse) + ')' : 'rgba(63,162,107,0.2)');
       layer(box, active ? '#7CE0A3' : 'rgba(63,162,107,0.5)');
 
-      // Highlight the whole target zone around the next cone on the ground
-      const cn = W.cones[this.coneIdx];
+      // Upcoming checkpoints: faint rings painted on the ground
+      const ringAt = (c, r1, r2) => {
+        const N = 36, out = [];
+        for (let i = 0; i < N; i++) {
+          const a1 = i / N * Math.PI * 2, a2 = (i + 1) / N * Math.PI * 2;
+          out.push([
+            { x: c.x + Math.cos(a1) * r1, y: c.y + Math.sin(a1) * r1 }, { x: c.x + Math.cos(a1) * r2, y: c.y + Math.sin(a1) * r2 },
+            { x: c.x + Math.cos(a2) * r2, y: c.y + Math.sin(a2) * r2 }, { x: c.x + Math.cos(a2) * r1, y: c.y + Math.sin(a2) * r1 },
+          ]);
+        }
+        return out;
+      };
+      W.checkpoints.forEach((c, i) => { if (i > this.cpIdx) layer(ringAt(c, TARGET_R * 0.8 - 3, TARGET_R * 0.8), 'rgba(242,201,76,0.45)'); });
+
+      // Highlight the whole checkpoint circle on the ground
+      const cn = W.checkpoints[this.cpIdx];
       if (cn) {
         const N = 36, disc = [], ring = [];
         for (let i = 0; i < N; i++) {
@@ -1596,11 +1710,11 @@ const Game = {
         }
       }
     } else {
-      W.cones.forEach((cn, i) => {
-        if (i >= this.coneIdx) add(cn.x, cn.y, 30, b => this.cone3(b, i === this.coneIdx, t));
+      W.checkpoints.forEach((cn, i) => {
+        if (i >= this.cpIdx) add(cn.x, cn.y, 30, b => this.checkpoint3(b, i === this.cpIdx, t, i + 1));
       });
-      const target = W.cones[this.coneIdx] || (this.done ? null : W.finish);
-      const label = this.coneIdx < W.cones.length ? 'Drive into cone ' + (this.coneIdx + 1) : 'Park here';
+      const target = W.checkpoints[this.cpIdx] || (this.done ? null : W.finish);
+      const label = this.cpIdx < W.checkpoints.length ? 'Checkpoint ' + (this.cpIdx + 1) + ' of ' + W.checkpoints.length : 'Park here';
       if (target) add(target.x, target.y, 10, b => this.marker3(b, t, label));
     }
     if (this.ai) add(this.ai.x, this.ai.y, 16, b => this.car3(b, this.ai.braking, this.ai.color));
@@ -1674,22 +1788,31 @@ const Game = {
     ctx.beginPath(); ctx.arc(b.sx, b.gy - 21.5 * s, 3.2 * s, 0, Math.PI * 2); ctx.fill();
   },
 
-  cone3(b, isTarget, t) {
-    const ctx = this.ctx, s = b.s;
+  // A checkpoint seen from the driver's seat: a numbered badge floating above its
+  // ground circle, like a game waypoint. It's a marker, not an obstacle.
+  checkpoint3(b, isTarget, t, n) {
+    const ctx = this.ctx, s = b.s, r = (isTarget ? 9 : 6.5) * s;
+    const y = b.gy - (isTarget ? 20 + 1.5 * Math.sin(t * 3) : 14) * s;
     if (isTarget) {
-      // Glow behind the target cone so it stands out from far away
-      const glow = ctx.createRadialGradient(b.sx, b.gy - 8 * s, 0, b.sx, b.gy - 8 * s, 26 * s);
-      glow.addColorStop(0, 'rgba(255,224,110,' + (0.75 + 0.2 * Math.sin(t * 4)) + ')');
+      const glow = ctx.createRadialGradient(b.sx, y, 0, b.sx, y, r * 2.6);
+      glow.addColorStop(0, 'rgba(255,224,110,' + (0.6 + 0.2 * Math.sin(t * 4)) + ')');
       glow.addColorStop(1, 'rgba(255,224,110,0)');
       ctx.fillStyle = glow;
-      ctx.beginPath(); ctx.arc(b.sx, b.gy - 8 * s, 26 * s, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(b.sx, y, r * 2.6, 0, Math.PI * 2); ctx.fill();
     }
-    ctx.fillStyle = '#F07F2E';
-    ctx.beginPath();
-    ctx.moveTo(b.sx - 6 * s, b.gy); ctx.lineTo(b.sx + 6 * s, b.gy); ctx.lineTo(b.sx, b.gy - 15 * s);
-    ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(b.sx - 3.4 * s, b.gy - 8 * s, 6.8 * s, 2.4 * s);
+    ctx.globalAlpha *= isTarget ? 1 : 0.7;
+    ctx.fillStyle = isTarget ? '#1E2A2F' : 'rgba(30,42,47,0.75)';
+    ctx.beginPath(); ctx.arc(b.sx, y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#F2C94C';
+    ctx.lineWidth = Math.max(1, 1.4 * s);
+    ctx.stroke();
+    if (r > 4) {
+      ctx.fillStyle = isTarget ? '#F2C94C' : '#fff';
+      ctx.font = 'bold ' + (r * 1.15).toFixed(1) + 'px system-ui, sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(n, b.sx, y + r * 0.06);
+    }
+    ctx.globalAlpha /= isTarget ? 1 : 0.7;
   },
 
   marker3(b, t, label) {
@@ -1701,7 +1824,7 @@ const Game = {
     ctx.moveTo(b.sx - 7 * s, y - 8 * s); ctx.lineTo(b.sx + 7 * s, y - 8 * s); ctx.lineTo(b.sx, y + 3 * s);
     ctx.closePath(); ctx.fill(); ctx.stroke();
     if (label) {
-      // A readable tag above the arrow ("Cone 2 of 5", "PARK here")
+      // A readable tag above the arrow ("Checkpoint 2 of 5", "Park here")
       const fs = Math.max(13, Math.min(18, 6 * s));
       ctx.font = 'bold ' + fs + 'px system-ui, sans-serif';
       const w = ctx.measureText(label).width + fs * 1.2, h = fs * 1.7, ty = y - 8 * s - h - 6;
@@ -1942,8 +2065,8 @@ const Game = {
     this.drawSpeedometer(cx, cy - R * 0.5, R * 0.29, R);
 
     // Gear: D for drive, R when backing up
-    const reversing = c.v < -1 || (Input.brake > 0.02 && this.revHold > 0.4 && c.v <= 0.5);
-    this.dashBox(cx - R * 0.42, cy - R * 0.66, R, 'GEAR', reversing ? 'R' : 'D', reversing ? '#F2994A' : '#7CE0A3');
+    const gearColor = { P: '#A9CBE8', R: '#F2994A', D: '#7CE0A3' }[Input.gear];
+    this.dashBox(cx - R * 0.42, cy - R * 0.66, R, 'GEAR', Input.gear, gearColor);
 
     // Speed limit reminder (many new cars show this on the dashboard)
     const lx = cx + R * 0.42, ly = cy - R * 0.66, lr = R * 0.095;
@@ -1961,7 +2084,8 @@ const Game = {
     ctx.font = (R * 0.045).toFixed(1) + 'px system-ui, sans-serif';
     ctx.fillText('LIMIT', lx, ly + lr * 1.55);
 
-    this.drawWheel(cx, cy, R);
+    // On phones the on-screen wheel below is the steering wheel, so don't draw a second one
+    if (Input.mode !== 'touch') this.drawWheel(cx, cy, R);
   },
 
   drawSpeedometer(x, y, r, R) {
@@ -2056,7 +2180,7 @@ const Game = {
     const ctx = this.ctx;
     ctx.save();
     ctx.translate(cx, cy);
-    ctx.rotate(Input.steer * 0.95);
+    ctx.rotate(Input.steer * (WHEEL_ROTATION / 2) * Math.PI / 180);   // up to ±450° (900° wheel)
     ctx.lineCap = 'round';
     ctx.strokeStyle = '#0F1214';
     ctx.lineWidth = R * 0.12;
