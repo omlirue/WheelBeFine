@@ -551,6 +551,25 @@ body.driving .bg-heart { display: none; }
 #drive.has-touch .gears { right: auto; left: 12px; bottom: calc(max(16px, env(safe-area-inset-bottom)) + 214px); flex-direction: row; }
 #drive.has-touch .gears-label { writing-mode: vertical-rl; transform: rotate(180deg); }
 #drive.has-touch:not(.driver-view) .coach { bottom: 300px; }
+
+/* Phones, driver's view: keep the windshield clear.
+   The dashboard sits right on the wheel and pedals (game.js sets --dash-h and --gears-bottom),
+   the gear buttons sit on the dashboard, and the dashboard already shows speed and limit. */
+#drive.has-touch.driver-view .speedo { display: none; }
+#drive.has-touch.driver-view .gears { bottom: var(--gears-bottom, 230px); padding: 6px 8px; gap: 5px; }
+#drive.has-touch.driver-view .gear-btn { width: 40px; height: 38px; font-size: 18px; }
+#drive.has-touch.driver-view .goal { left: 12px; right: auto; max-width: calc(100% - 24px); padding: 6px 10px; font-size: 13px; background: rgba(255, 255, 255, .9); }
+#drive.has-touch.driver-view .goal b { font-size: 13.5px; }
+#drive.has-touch.driver-view .goal span:not(.next) { display: none; }   /* counts stay in map view and Pause */
+#drive.has-touch.driver-view .coach,
+#drive.has-touch.driver-view.lot-drive .coach {
+  top: auto; bottom: calc(var(--dash-h, 300px) + 6px); left: 50%; right: auto;
+  width: max-content; max-width: calc(100% - 24px); transform: translate(-50%, 8px);
+  font-size: 13px; line-height: 1.3; padding: 7px 12px; background: rgba(255, 255, 255, .88);
+}
+#drive.has-touch.driver-view .coach.show,
+#drive.has-touch.driver-view.lot-drive .coach.show { transform: translate(-50%, 0); }
+#drive.has-touch.driver-view .mission { top: calc(max(12px, env(safe-area-inset-top)) + 52px); }
 .keys li.gearkeys kbd { min-width: 24px; padding: 0 4px; }
 .mission.gear .bullseye { background: #7CE0A3; border-color: #3FA26B; color: #12391F; display: grid; place-items: center; font: 800 15px system-ui, sans-serif; }
 @media (max-width: 480px) {
@@ -589,3 +608,20 @@ body.driving .bg-heart { display: none; }
 .checklist li.locked .cl-gear-btn { pointer-events: none; }
 .cl-note { min-height: 1.4em; margin: 6px 0 0; color: var(--brick); font-weight: 600; font-size: 14px; }
 @media (prefers-reduced-motion: reduce) { .checklist li.shake { animation: none; } }
+#drive.has-touch.driver-view .mission { padding: 6px 10px; }
+#drive.has-touch.driver-view .mission b { font-size: 15px; }
+#drive.has-touch.driver-view .mission span { display: none; }   /* keep just the step, so the lot stays visible */
+/* Phones held sideways: the gear buttons stand in a column next to the pedals */
+@media (orientation: landscape) and (max-height: 600px) {
+  #drive.has-touch .gears,
+  #drive.has-touch.driver-view .gears { left: auto; right: 190px; bottom: max(16px, env(safe-area-inset-bottom)); flex-direction: column; }
+  #drive.has-touch .gears-label { writing-mode: horizontal-tb; transform: none; }
+  #drive.has-touch:not(.driver-view) .coach { bottom: auto; top: calc(max(12px, env(safe-area-inset-top)) + 52px); }
+  #drive.has-touch.driver-view .coach,
+  #drive.has-touch.driver-view.lot-drive .coach,
+  #drive.has-touch.driver-view .coach.show,
+  #drive.has-touch.driver-view.lot-drive .coach.show {
+    bottom: auto; top: calc(max(12px, env(safe-area-inset-top)) + 52px); left: auto; right: 12px;
+    max-width: min(420px, calc(100% - 340px)); transform: none;
+  }
+}

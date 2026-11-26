@@ -76,6 +76,27 @@ const Game = {
     this.dpr = Math.min(window.devicePixelRatio || 1, 2);
     this.canvas.width = Math.round(this.cw * this.dpr);
     this.canvas.height = Math.round(this.ch * this.dpr);
+
+    // Phones: find where the on-screen wheel and pedals start, so the driver's-view
+    // dashboard can sit right on top of them (see cockpit()).
+    this.ctrlTop = null;
+    const touchEl = document.getElementById('touch');
+    if (touchEl && !touchEl.hidden) {
+      const pad = document.getElementById('wheel-pad').getBoundingClientRect();
+      const ped = touchEl.querySelector('.pedals').getBoundingClientRect();
+      // Only in portrait: held sideways, the wheel and pedals sit at the sides and the
+      // dashboard fits between them at the bottom.
+      const portrait = this.ch > this.cw;
+      this.ctrlTop = portrait ? Math.min(pad.top, ped.top) - r.top : null;
+      const saved = this.bottomInset;
+      if (!portrait) this.bottomInset = 0;
+      const ck = this.cockpit();
+      const drive = document.getElementById('drive');
+      drive.style.setProperty('--dash-h', Math.round(this.ch - ck.dashTop) + 'px');
+      if (portrait) drive.style.setProperty('--gears-bottom', Math.round(this.ch - (ck.cy - ck.R * 0.5) - 26) + 'px');
+      else drive.style.removeProperty('--gears-bottom');
+      this.bottomInset = portrait ? saved : 0;
+    }
   },
 
   start(level, onFinish) {
@@ -2015,6 +2036,18 @@ const Game = {
   // bottom for the on-screen pedals when touch controls are used.
   cockpit() {
     const cw = this.cw, ch = this.ch, inset = this.bottomInset || 0;
+    // Phones: the dashboard sits right on top of the on-screen wheel and pedals, with the
+    // gear buttons on its left and the speedometer on its right, so the windshield gets
+    // as much of the screen as possible.
+    if (Input.mode === 'touch' && this.ctrlTop) {
+      const GEARS_RIGHT = 12 + 168;                       // right edge of the gear buttons
+      const R = Math.max(90, Math.min(160, cw * 0.42, (cw - GEARS_RIGHT - 16) / 1.24));
+      const cy = this.ctrlTop - 6 + R * 0.19;
+      const dashTop = cy - R * 0.78;
+      const gx = Math.min(cw - 12 - R * 0.62, Math.max(cw / 2, GEARS_RIGHT + 8 + R * 0.62));
+      const hy = Math.round(Math.max(120, dashTop * 0.5));
+      return { R, cx: cw / 2, cy, dashTop, hy, gx, touch: true };
+    }
     const R = Math.min(cw * (cw < ch ? 0.4 : 0.27), (ch - inset) * 0.42);
     const cx = cw / 2, cy = ch - inset + R * 0.12;
     const dashTop = cy - R * 0.78;
@@ -2025,6 +2058,7 @@ const Game = {
   drawDashboard(ck) {
     const ctx = this.ctx, cw = this.cw, ch = this.ch, c = this.car;
     const { R, cx, cy, dashTop } = ck;
+    const gx = ck.gx || cx;          // where the instrument cluster sits (off to the right on phones)
     const side = dashTop + R * 0.1;
 
     // Roof edge and the two windshield pillars
@@ -2058,18 +2092,18 @@ const Game = {
     // Hood over the instrument cluster
     ctx.fillStyle = '#242B2E';
     ctx.beginPath();
-    ctx.moveTo(cx - R * 0.62, dashTop + R * 0.05);
-    ctx.bezierCurveTo(cx - R * 0.55, cy - R * 0.95, cx + R * 0.55, cy - R * 0.95, cx + R * 0.62, dashTop + R * 0.05);
+    ctx.moveTo(gx - R * 0.62, dashTop + R * 0.05);
+    ctx.bezierCurveTo(gx - R * 0.55, cy - R * 0.95, gx + R * 0.55, cy - R * 0.95, gx + R * 0.62, dashTop + R * 0.05);
     ctx.fill();
 
-    this.drawSpeedometer(cx, cy - R * 0.5, R * 0.29, R);
+    this.drawSpeedometer(gx, cy - R * 0.5, R * 0.29, R);
 
-    // Gear: D for drive, R when backing up
+    // Gear: D for drive, R when backing up (on phones the P/R/D buttons beside it show the gear)
     const gearColor = { P: '#A9CBE8', R: '#F2994A', D: '#7CE0A3' }[Input.gear];
-    this.dashBox(cx - R * 0.42, cy - R * 0.66, R, 'GEAR', Input.gear, gearColor);
+    if (!ck.touch) this.dashBox(gx - R * 0.42, cy - R * 0.66, R, 'GEAR', Input.gear, gearColor);
 
     // Speed limit reminder (many new cars show this on the dashboard)
-    const lx = cx + R * 0.42, ly = cy - R * 0.66, lr = R * 0.095;
+    const lx = gx + R * 0.42, ly = cy - R * 0.66, lr = R * 0.095;
     ctx.fillStyle = '#fff';
     ctx.beginPath(); ctx.arc(lx, ly, lr, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = '#C0392B';
